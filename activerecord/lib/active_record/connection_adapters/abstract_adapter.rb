@@ -41,6 +41,7 @@ module ActiveRecord
       autoload :ConnectionPool
       autoload :QueryCache
       autoload :Savepoints
+      autoload :LazyTransactionProxy
     end
 
     autoload_at "active_record/connection_adapters/abstract/transaction" do
@@ -80,6 +81,9 @@ module ActiveRecord
       attr_reader :schema_cache, :owner, :logger, :prepared_statements, :lock
       alias :in_use? :owner
 
+      delegate :materialize_transactions, :disable_lazy_transactions!, :enable_lazy_transactions!, to: :@connection
+      set_callback :checkin, :after, :enable_lazy_transactions!
+
       def self.type_cast_config_to_integer(config)
         if config =~ SIMPLE_INT
           config.to_i
@@ -99,7 +103,7 @@ module ActiveRecord
       def initialize(connection, logger = nil, config = {}) # :nodoc:
         super()
 
-        @connection          = connection
+        self.connection      = connection
         @owner               = nil
         @instrumenter        = ActiveSupport::Notifications.instrumenter
         @logger              = logger
@@ -442,7 +446,7 @@ module ActiveRecord
       # This is useful for when you need to call a proprietary method such as
       # PostgreSQL's lo_* methods.
       def raw_connection
-        @connection
+        @connection.proxied_connection
       end
 
       def case_sensitive_comparison(table, attribute, column, value) # :nodoc:
@@ -480,6 +484,14 @@ module ActiveRecord
       end
 
       private
+        def connection=(connection)
+          @connection = LazyTransactionProxy.new(connection)
+        end
+
+        def prepare_statement(sql)
+          LazyTransactionProxy::StatementProxy.new(@connection.prepare(sql), @connection)
+        end
+
         def type_map
           @type_map ||= Type::TypeMap.new.tap do |mapping|
             initialize_type_map(mapping)

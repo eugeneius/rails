@@ -195,6 +195,7 @@ module ActiveRecord
             end
 
           @stack.push(transaction)
+          @connection.materialize_transactions unless options.fetch(:lazy, true)
           transaction
         end
       end

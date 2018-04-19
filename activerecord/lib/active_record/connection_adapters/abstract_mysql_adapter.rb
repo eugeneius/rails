@@ -195,7 +195,9 @@ module ActiveRecord
       end
 
       def begin_db_transaction
-        execute "BEGIN"
+        @connection.begin_transaction do
+          execute "BEGIN"
+        end
       end
 
       def begin_isolated_db_transaction(isolation)
@@ -204,11 +206,15 @@ module ActiveRecord
       end
 
       def commit_db_transaction #:nodoc:
-        execute "COMMIT"
+        @connection.end_transaction do
+          execute "COMMIT"
+        end
       end
 
       def exec_rollback_db_transaction #:nodoc:
-        execute "ROLLBACK"
+        @connection.end_transaction do
+          execute "ROLLBACK"
+        end
       end
 
       # In the simple case, MySQL allows us to place JOINs directly into the UPDATE

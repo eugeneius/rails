@@ -130,7 +130,9 @@ module ActiveRecord
 
         # Begins a transaction.
         def begin_db_transaction
-          execute "BEGIN"
+          @connection.begin_transaction do
+            execute "BEGIN"
+          end
         end
 
         def begin_isolated_db_transaction(isolation)
@@ -140,12 +142,16 @@ module ActiveRecord
 
         # Commits a transaction.
         def commit_db_transaction
-          execute "COMMIT"
+          @connection.end_transaction do
+            execute "COMMIT"
+          end
         end
 
         # Aborts a transaction.
         def exec_rollback_db_transaction
-          execute "ROLLBACK"
+          @connection.end_transaction do
+            execute "ROLLBACK"
+          end
         end
 
         private

@@ -681,7 +681,7 @@ module ActiveRecord
         # Connects to a PostgreSQL server and sets up the adapter depending on the
         # connected server's characteristics.
         def connect
-          @connection = PG.connect(@connection_parameters)
+          self.connection = PG.connect(@connection_parameters)
           configure_connection
         rescue ::PG::Error => error
           if error.message.include?("does not exist")

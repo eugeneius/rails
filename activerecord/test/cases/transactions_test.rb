@@ -902,6 +902,76 @@ class TransactionTest < ActiveRecord::TestCase
     connection.drop_table "transaction_without_primary_keys", if_exists: true
   end
 
+  def test_empty_transaction_is_not_materialized
+    assert_no_queries do
+      Topic.transaction {}
+    end
+  end
+
+  def test_unprepared_statement_materializes_transaction
+    assert_sql(/BEGIN/i, /COMMIT/i) do
+      Topic.transaction { Topic.where("1=1").first }
+    end
+  end
+
+  if ActiveRecord::Base.connection.prepared_statements
+    def test_prepared_statement_materializes_transaction
+      Topic.first
+
+      assert_sql(/BEGIN/i, /COMMIT/i) do
+        Topic.transaction { Topic.first }
+      end
+    end
+  end
+
+  def test_savepoint_materializes_transaction
+    assert_sql(/BEGIN/i, /COMMIT/i) do
+      Topic.transaction do
+        Topic.transaction(requires_new: true) {}
+      end
+    end
+  end
+
+  def test_raising_does_not_materialize_transaction
+    assert_raise(RuntimeError) do
+      assert_no_queries do
+        Topic.transaction { raise }
+      end
+    end
+  end
+
+  def test_accessing_raw_connection_materializes_transaction
+    assert_sql(/BEGIN/i, /COMMIT/i) do
+      Topic.transaction { Topic.connection.raw_connection }
+    end
+  end
+
+  def test_accessing_raw_connection_disables_lazy_transactions
+    Topic.connection.raw_connection
+
+    assert_sql(/BEGIN/i, /COMMIT/i) do
+      Topic.transaction {}
+    end
+  end
+
+  def test_checking_in_connection_reenables_lazy_transactions
+    connection = Topic.connection_pool.checkout
+    connection.raw_connection
+    Topic.connection_pool.checkin connection
+
+    assert_no_queries do
+      connection.transaction {}
+    end
+  end
+
+  def test_transactions_can_be_manually_materialized
+    assert_sql(/BEGIN/i, /COMMIT/i) do
+      Topic.transaction do
+        Topic.connection.materialize_transactions
+      end
+    end
+  end
+
   private
 
     %w(validation save destroy).each do |filter|
