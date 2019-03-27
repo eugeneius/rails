@@ -20,6 +20,7 @@ module ActiveModel
       #   validates :first_name, length: { maximum: 30 }
       #   validates :age, numericality: true
       #   validates :username, presence: true
+      #   validates :username, absence: true
       #
       # The power of the +validates+ method comes when using custom validators
       # and default validators in one call for a given attribute.
