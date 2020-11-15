@@ -270,6 +270,16 @@ module ActiveRecord
       end
     end
 
+    def clear_query_caches_for_peer_connections(owner) # :nodoc:
+      if ActiveRecord::Base.legacy_connection_handling
+        ActiveRecord::Base.connection_handlers.each_value do |handler|
+          clear_on_handler(handler, owner)
+        end
+      else
+        clear_on_handler(ActiveRecord::Base.connection_handler, owner)
+      end
+    end
+
     # Returns the connection currently associated with the class. This can
     # also be used to "borrow" the connection to do database work unrelated
     # to any of the specific Active Records.
@@ -346,8 +356,9 @@ module ActiveRecord
       :clear_all_connections!, :flush_idle_connections!, to: :connection_handler
 
     private
-      def clear_on_handler(handler)
+      def clear_on_handler(handler, owner = nil)
         handler.all_connection_pools.each do |pool|
+          next if owner && pool.pool_config.connection_specification_name != owner
           pool.connection.clear_query_cache if pool.active_connection?
         end
       end

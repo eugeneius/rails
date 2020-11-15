@@ -20,6 +20,7 @@ module ActiveRecord
     end
 
     class NullPool # :nodoc:
+      include QueryCache::NullConnectionPoolConfiguration
       include ConnectionAdapters::AbstractPool
 
       attr_accessor :schema_cache
